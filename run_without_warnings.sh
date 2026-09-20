@@ -1,0 +1,1 @@
+GLOG_minloglevel=3 TF_CPP_MIN_LOG_LEVEL=3 ABSL_LOG_LEVEL=3 OPENCV_LOG_LEVEL=FATAL python3 desktop_controller.py 2> >(grep -vE "inference_feedback_manager|Feedback manager|freenect_fetch_reg_info|NORM_RECT|XNNPACK" >&2)

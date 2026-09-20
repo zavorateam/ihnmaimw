@@ -20,12 +20,12 @@ import evdev
 from evdev import AbsInfo, UInput, ecodes as e
 import numpy as np
 
-# Подавление низкоуровневого шума
-os.environ["QT_QPA_PLATFORM"] = "xcb"
-os.environ["OPENCV_LOG_LEVEL"] = "FATAL"
-os.environ["GLOG_minloglevel"] = "3"
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-os.environ["ABSL_LOG_LEVEL"] = "3"
+# Подавление шума из предупреждений
+# os.environ["QT_QPA_PLATFORM"] = "xcb"
+# os.environ["OPENCV_LOG_LEVEL"] = "FATAL"
+# os.environ["GLOG_minloglevel"] = "3"
+# os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+# os.environ["ABSL_LOG_LEVEL"] = "3"
 
 try:
     from kinect_tracker import HandData, Joint, KinectTracker, TrackingFrame

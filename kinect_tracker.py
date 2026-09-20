@@ -23,15 +23,13 @@ from mediapipe.tasks import python
 from mediapipe.tasks.python import vision
 import numpy as np
 
-os.environ["GLOG_minloglevel"] = "3"
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-os.environ["ABSL_LOG_LEVEL"] = "3"
-os.environ["OPENCV_LOG_LEVEL"] = "FATAL"
-os.environ["QT_QPA_FONTDIR"] = "/usr/share/fonts"
+# os.environ["GLOG_minloglevel"] = "3"
+# os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+# os.environ["ABSL_LOG_LEVEL"] = "3"
+# os.environ["OPENCV_LOG_LEVEL"] = "FATAL"
 
-# Подавление системных предупреждений Qt/Wayland
 os.environ["QT_QPA_PLATFORM"] = "xcb"
-os.environ["OPENCV_LOG_LEVEL"] = "ERROR"
+os.environ["QT_QPA_FONTDIR"] = "/usr/share/fonts"
 
 # ==============================================================================
 # КОНФИГУРАЦИЯ И ССЫЛКИ НА МОДЕЛИ
