@@ -168,7 +168,7 @@ class ZeroLagTouchDesignerDSP:
         self.vel = None
         self.frames_lost = 0
 
-    def update(self, target_pts: np.ndarray, dt: float, bounds=(1280, 1024)) -> np.ndarray:
+    def update(self, target_pts: np.ndarray, dt: float, bounds=(1280, 1024)) -> Optional[np.ndarray]:
         max_w, max_h = bounds
         if target_pts is None or not np.all(np.isfinite(target_pts)):
             return self.extrapolate(dt, bounds)
@@ -181,36 +181,43 @@ class ZeroLagTouchDesignerDSP:
             self.frames_lost = 0
             return self.pos
 
+        pos = self.pos
+        vel = self.vel
+        assert pos is not None and vel is not None
+
         dt_total = float(np.clip(dt, 0.001, 0.06))
         substeps = max(1, int(np.ceil(dt_total / 0.005)))
         dt_sub = dt_total / substeps
 
         for _ in range(substeps):
-            delta = target_pts - self.pos
+            delta = target_pts - pos
             dist = np.linalg.norm(delta, axis=-1, keepdims=True) + 1e-6
-            current_speed = np.mean(np.linalg.norm(self.vel, axis=-1))
+            current_speed = float(np.mean(np.linalg.norm(vel, axis=-1)))
 
             speed_factor = float(np.clip(current_speed / 800.0, 0.0, 1.0))
             omega = self.base_omega + (self.max_omega - self.base_omega) * (speed_factor ** 1.5)
             zeta = 1.05 - 0.25 * speed_factor
 
             max_step = self.max_speed * dt_sub
-            clamped_target = np.where(dist > max_step, self.pos + delta * (max_step / dist), target_pts)
+            clamped_target = np.where(dist > max_step, pos + delta * (max_step / dist), target_pts)
 
-            acc = (omega ** 2) * (clamped_target - self.pos) - 2.0 * zeta * omega * self.vel
-            self.vel += acc * dt_sub
-            self.vel = np.clip(self.vel, -self.max_speed, self.max_speed)
-            self.pos += self.vel * dt_sub
-            self.pos = np.clip(self.pos, -30.0, [max_w + 30.0, max_h + 30.0])
+            acc = (omega ** 2) * (clamped_target - pos) - 2.0 * zeta * omega * vel
+            vel = vel + acc * dt_sub
+            vel = np.clip(vel, -self.max_speed, self.max_speed)
+            pos = pos + vel * dt_sub
+            pos = np.clip(pos, -30.0, [max_w + 30.0, max_h + 30.0])
 
+        self.pos = pos
+        self.vel = vel
         self.frames_lost = 0
-        predicted_pos = self.pos + self.vel * self.lead_time
+        predicted_pos = pos + vel * self.lead_time
         return np.clip(predicted_pos, 0.0, [max_w, max_h])
 
-    def extrapolate(self, dt: float, bounds=(1280, 1024)) -> np.ndarray:
+    def extrapolate(self, dt: float, bounds=(1280, 1024)) -> Optional[np.ndarray]:
         if self.pos is None or not np.all(np.isfinite(self.pos)):
             return None
 
+        assert self.vel is not None
         max_w, max_h = bounds
         dt = float(np.clip(dt, 0.001, 0.03))
         self.vel *= 0.92
@@ -420,6 +427,8 @@ class KinectTracker:
             pose_data.right_wrist = create_joint(p_lms[16], 16, "RIGHT_WRIST")
 
             if p_lms[11].visibility > 0.2 and p_lms[12].visibility > 0.2:
+                assert pose_data.left_shoulder is not None
+                assert pose_data.right_shoulder is not None
                 tc_x = int((p_lms[11].x + p_lms[12].x) / 2.0 * w)
                 tc_y = int((p_lms[11].y + p_lms[12].y) / 2.0 * h)
                 tc_z = (pose_data.left_shoulder.z + pose_data.right_shoulder.z) / 2.0
@@ -540,8 +549,9 @@ def render_anatomical_3d_avatar(rgb_raw: np.ndarray, depth_raw: np.ndarray,
         color_map[body_mask] = [180, 20, 140]
 
         # Зона головы (Золотисто-желтый)
-        if frame_data.pose.head:
-            hx, hy = frame_data.pose.head.px, frame_data.pose.head.py
+        if frame_data.pose.head is not None:
+            hx = frame_data.pose.head.px
+            hy = frame_data.pose.head.py
             cv2.circle(color_map, (hx, hy), 120, (0, 220, 255), -1)
 
         # Зона левой руки (Неоновый зеленый)
@@ -603,6 +613,8 @@ class InteractiveVisualizer:
             for frame_data in self.tracker.stream():
                 rgb_raw = frame_data.rgb
                 depth_raw = frame_data.depth
+                if rgb_raw is None or depth_raw is None:
+                    continue
                 h, w, _ = rgb_raw.shape
 
                 canvas = cv2.cvtColor(rgb_raw, cv2.COLOR_RGB2BGR)
@@ -615,12 +627,12 @@ class InteractiveVisualizer:
                         13: p.left_elbow, 14: p.right_elbow, 15: p.left_wrist, 16: p.right_wrist
                     }
                     for s, e in POSE_CONNECTIONS:
-                        if s in joints_map and e in joints_map and joints_map[s] and joints_map[e]:
-                            pt1 = (joints_map[s].px, joints_map[s].py)
-                            pt2 = (joints_map[e].px, joints_map[e].py)
-                            cv2.line(canvas, pt1, pt2, (255, 170, 0), 2)
-                    for j_id, j_obj in joints_map.items():
-                        if j_obj:
+                        j_s = joints_map.get(s)
+                        j_e = joints_map.get(e)
+                        if j_s is not None and j_e is not None:
+                            cv2.line(canvas, (j_s.px, j_s.py), (j_e.px, j_e.py), (255, 170, 0), 2)
+                    for j_obj in joints_map.values():
+                        if j_obj is not None:
                             cv2.circle(canvas, (j_obj.px, j_obj.py), 4, (0, 255, 255), -1)
 
                 # Отрисовка кистей и пальцев
@@ -655,13 +667,21 @@ class InteractiveVisualizer:
                     output = cv2.cvtColor(rgb_raw, cv2.COLOR_RGB2BGR)
                     mode_name = "3: Raw SXGA RGB Stream"
                 elif self.display_mode == 4:
-                    d_vis = (np.clip(depth_raw, 0, 1200) / 1200.0 * 255.0).astype(np.uint8)
-                    d_vis = cv2.resize(d_vis, (w, h), interpolation=cv2.INTER_NEAREST)
-                    output = cv2.applyColorMap(d_vis, cv2.COLORMAP_JET)
-                    mode_name = "4: Depth Distance Map"
+                    if depth_raw is None:
+                        output = canvas
+                        mode_name = "4: Depth Map (no frame)"
+                    else:
+                        d_vis = (np.clip(depth_raw, 0, 1200) / 1200.0 * 255.0).astype(np.uint8)
+                        d_vis = cv2.resize(d_vis, (w, h), interpolation=cv2.INTER_NEAREST)
+                        output = cv2.applyColorMap(d_vis, cv2.COLORMAP_JET)
+                        mode_name = "4: Depth Distance Map"
                 elif self.display_mode == 5:
-                    output = render_anatomical_3d_avatar(rgb_raw, depth_raw, frame_data)
-                    mode_name = "5: Chromatic Body Avatar"
+                    if rgb_raw is None or depth_raw is None:
+                        output = canvas
+                        mode_name = "5: Avatar (no raw frames)"
+                    else:
+                        output = render_anatomical_3d_avatar(rgb_raw, depth_raw, frame_data)
+                        mode_name = "5: Chromatic Body Avatar"
                 else:
                     output = canvas
                     mode_name = "Not stated"

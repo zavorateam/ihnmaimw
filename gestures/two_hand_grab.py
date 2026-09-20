@@ -46,6 +46,9 @@ class TwoHandGrabGesture(BaseGesture):
             now = frame.timestamp
 
             if self.two_hand_active:
+                assert self.smoothed_2h_dist is not None
+                assert self.smoothed_2h_cx is not None
+                assert self.smoothed_2h_cy is not None
                 self.smoothed_2h_dist = 0.75 * self.smoothed_2h_dist + 0.25 * cur_dist
                 self.smoothed_2h_cx = 0.75 * self.smoothed_2h_cx + 0.25 * cur_cx
                 self.smoothed_2h_cy = 0.75 * self.smoothed_2h_cy + 0.25 * cur_cy

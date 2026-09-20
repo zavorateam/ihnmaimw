@@ -147,6 +147,8 @@ class OneEuroFilter2D:
             self.t_prev = t
             return x
 
+        assert self.x_prev is not None
+        assert self.dx_prev is not None
         dt = max(t - self.t_prev, 1e-4)
         self.t_prev = t
 
@@ -242,36 +244,42 @@ class WaylandPointerMouse:
 
     def move_abs(self, x: int, y: int):
         if not self.is_active: return
+        assert self.device is not None
         self.device.write(e.EV_ABS, e.ABS_X, int(np.clip(x, 0, self.w)))
         self.device.write(e.EV_ABS, e.ABS_Y, int(np.clip(y, 0, self.h)))
         self.device.syn()
 
     def set_left_btn(self, pressed: bool):
         if not self.is_active or self.left_pressed == pressed: return
+        assert self.device is not None
         self.left_pressed = pressed
         self.device.write(e.EV_KEY, e.BTN_LEFT, 1 if pressed else 0)
         self.device.syn()
 
     def set_right_btn(self, pressed: bool):
         if not self.is_active or self.right_pressed == pressed: return
+        assert self.device is not None
         self.right_pressed = pressed
         self.device.write(e.EV_KEY, e.BTN_RIGHT, 1 if pressed else 0)
         self.device.syn()
 
     def set_middle_btn(self, pressed: bool):
         if not self.is_active or self.middle_pressed == pressed: return
+        assert self.device is not None
         self.middle_pressed = pressed
         self.device.write(e.EV_KEY, e.BTN_MIDDLE, 1 if pressed else 0)
         self.device.syn()
 
     def scroll_v(self, steps: int):
         if not self.is_active or steps == 0: return
+        assert self.device is not None
         self.device.write(e.EV_REL, e.REL_WHEEL, steps)
         self.device.write(e.EV_REL, e.REL_WHEEL_HI_RES, steps * 120)
         self.device.syn()
 
     def scroll_h(self, steps: int):
         if not self.is_active or steps == 0: return
+        assert self.device is not None
         self.device.write(e.EV_REL, e.REL_HWHEEL, steps)
         self.device.write(e.EV_REL, e.REL_HWHEEL_HI_RES, steps * 120)
         self.device.syn()
@@ -282,9 +290,11 @@ class WaylandPointerMouse:
         self.set_middle_btn(False)
 
     def close(self):
-        if self.is_active and self.device:
-            self.release_all()
-            self.device.close()
+        if not self.is_active:
+            return
+        assert self.device is not None
+        self.release_all()
+        self.device.close()
 
 
 class GestureEngine:

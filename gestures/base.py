@@ -23,13 +23,6 @@ else:
         HandData = None         # type: ignore[assignment]
         TrackingFrame = None    # type: ignore[assignment]
 
-try:
-    from kinect_tracker import HandData, Joint, TrackingFrame
-except ImportError:
-    Joint = None
-    HandData = None
-    TrackingFrame = None
-
 
 # Конфигурация геометрии
 SCREEN_W = 2560
