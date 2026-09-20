@@ -1,0 +1,6 @@
+numpy
+evdev
+opencv-python
+mediapipe
+freenect
+torch
